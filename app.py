@@ -2,8 +2,10 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
 from datetime import datetime
 
+# Base de datos de clientes autorizados
+# Formato: "DNI-VIN": {"nombre": "Cliente", "vence": "20271231", "activo": True}
 CLIENTES = {
-    "DEMO001": {"nombre": "Demo", "vence": "20271231", "activo": True},
+    "14502950-8AGBY69W0PR146205": {"nombre": "CHARLY", "vence": "20991231", "activo": True},
 }
 
 class Handler(BaseHTTPRequestHandler):
@@ -14,50 +16,27 @@ class Handler(BaseHTTPRequestHandler):
             request = json.loads(body)
             service = request.get('service', '')
             user_id = request.get('id', '')
+            dni = request.get('dni', '')
+            vin = request.get('vin', '')
         except:
             service = ''
             user_id = ''
+            dni = ''
+            vin = ''
+
         hoy = datetime.now().strftime("%Y%m%d")
-        cliente = CLIENTES.get(user_id)
-        if cliente and cliente["activo"] and cliente["vence"] >= hoy:
-            result = "ok"
-            msg = "success"
-            expdate = cliente["vence"]
-            print(f"Login OK: {user_id} ({cliente['nombre']})")
-        else:
-            result = "ok"
-            msg = "success"
-            expdate = "20991231"
-            print(f"Login DESCONOCIDO: {user_id}")
-        respuesta = json.dumps({
-            "service": service,
-            "result": result,
-            "msg": msg,
-            "user_id": user_id,
-            "latest_ver": "2016Q3.16042",
-            "version": "2016Q3.16042",
-            "expdate": expdate,
-            "updatelimit": "20991231",
-            "trialday": "0",
-            "today": hoy,
-            "crc": 0
-        })
-        body_resp = respuesta.encode('utf-8')
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body_resp)))
-        self.end_headers()
-        self.wfile.write(body_resp)
 
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header("Content-Type", "text/plain")
-        self.end_headers()
-        self.wfile.write(b"BringGo Server OK")
-
-    def log_message(self, format, *args):
-        print("->", args)
-
-port = int(__import__('os').environ.get('PORT', 9090))
-print(f"Servidor BringGo corriendo en puerto {port}...")
-HTTPServer(("0.0.0.0", port), Handler).serve_forever()
+        # Si viene DNI y VIN, validar por esa combinación
+        if dni and vin:
+            clave = f"{dni}-{vin}"
+            cliente = CLIENTES.get(clave)
+            if cliente and cliente["activo"] and cliente["vence"] >= hoy:
+                result = "ok"
+                msg = "success"
+                expdate = cliente["vence"]
+                print(f"Login OK: {clave} ({cliente['nombre']})")
+            else:
+                result = "fail"
+                msg = "unauthorized"
+                expdate = "00000000"
+                print(f"Login RECHAZADO: {clave}")
